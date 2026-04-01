@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2, Lock } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useIsAdmin } from "../hooks/useQueries";
@@ -15,8 +16,7 @@ function getTokenFromHash(): string {
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const { login, isLoggingIn, isLoginSuccess, identity } =
-    useInternetIdentity();
+  const { login, isLoggingIn, identity } = useInternetIdentity();
   const {
     data: isAdmin,
     isLoading: checkingAdmin,
@@ -26,56 +26,42 @@ export function AdminLoginPage() {
 
   const [activating, setActivating] = useState(false);
   const [activateError, setActivateError] = useState("");
+  const [manualToken, setManualToken] = useState("");
   const activatedRef = useRef(false);
 
-  // Auto-activate when logged in and a token is present in the URL hash
+  const activateWithToken = useCallback(
+    async (token: string) => {
+      if (!actor || !identity || activatedRef.current) return;
+      activatedRef.current = true;
+      setActivating(true);
+      setActivateError("");
+      try {
+        await actor._initializeAccessControlWithSecret(token);
+        const result = await refetchAdmin();
+        if (result.data) {
+          navigate({ to: "/admin" });
+        } else {
+          setActivateError("Token not accepted. Please check and try again.");
+          activatedRef.current = false;
+        }
+      } catch {
+        setActivateError("Activation failed. Please try again.");
+        activatedRef.current = false;
+      } finally {
+        setActivating(false);
+      }
+    },
+    [actor, identity, navigate, refetchAdmin],
+  );
+
+  // Auto-activate when identity is present and token is in URL hash
   useEffect(() => {
     if (!identity || !actor || isAdmin || checkingAdmin || activatedRef.current)
       return;
-    if (!isLoginSuccess) return;
-
     const token = getTokenFromHash();
     if (!token) return;
-
-    activatedRef.current = true;
-    setActivating(true);
-    setActivateError("");
-
-    actor
-      ._initializeAccessControlWithSecret(token)
-      .then(() => refetchAdmin())
-      .then((result) => {
-        if (result.data) {
-          // Clean token from URL before navigating
-          history.replaceState(
-            null,
-            "",
-            window.location.pathname + window.location.search,
-          );
-          navigate({ to: "/admin" });
-        } else {
-          setActivateError(
-            "Admin activation failed. Please try the deployment link again.",
-          );
-          activatedRef.current = false;
-        }
-      })
-      .catch(() => {
-        setActivateError(
-          "Admin activation failed. Please try the deployment link again.",
-        );
-        activatedRef.current = false;
-      })
-      .finally(() => setActivating(false));
-  }, [
-    identity,
-    isLoginSuccess,
-    actor,
-    isAdmin,
-    checkingAdmin,
-    navigate,
-    refetchAdmin,
-  ]);
+    activateWithToken(token);
+  }, [identity, actor, isAdmin, checkingAdmin, activateWithToken]);
 
   useEffect(() => {
     if (identity && isAdmin) {
@@ -83,7 +69,9 @@ export function AdminLoginPage() {
     }
   }, [identity, isAdmin, navigate]);
 
-  const hasTokenInUrl = Boolean(getTokenFromHash());
+  const showTokenForm = Boolean(
+    identity && !isAdmin && !checkingAdmin && !activating,
+  );
 
   return (
     <main className="min-h-[80vh] flex items-center justify-center bg-background">
@@ -109,7 +97,8 @@ export function AdminLoginPage() {
               Admin Access
             </h1>
             <p className="text-cream-DEFAULT/60 text-sm font-sans">
-              Sign in with your identity to access the editorial dashboard.
+              Sign in with your Internet Identity to access the editorial
+              dashboard.
             </p>
           </div>
 
@@ -125,30 +114,40 @@ export function AdminLoginPage() {
                 {activating ? "ACTIVATING..." : "CONNECTING..."}
               </>
             ) : (
-              "SIGN IN"
+              "SIGN IN WITH INTERNET IDENTITY"
             )}
           </Button>
 
-          {isLoginSuccess &&
-            !isAdmin &&
-            !checkingAdmin &&
-            !activating &&
-            !hasTokenInUrl && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6 text-center"
-                data-ocid="login.error_state"
+          {showTokenForm && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6"
+              data-ocid="login.token_form"
+            >
+              <p className="text-cream-DEFAULT/70 text-xs category-meta tracking-widest text-center mb-3">
+                ENTER YOUR ADMIN TOKEN
+              </p>
+              <Input
+                type="text"
+                placeholder="Paste your admin token here"
+                value={manualToken}
+                onChange={(e) => setManualToken(e.target.value)}
+                className="bg-wine-DEFAULT/30 border-wine-vibrant/40 text-cream-DEFAULT placeholder:text-cream-DEFAULT/30 mb-3 text-sm"
+              />
+              <Button
+                onClick={() => activateWithToken(manualToken)}
+                disabled={!manualToken.trim() || activating}
+                className="w-full bg-wine-vibrant/80 hover:bg-wine-vibrant text-cream-DEFAULT category-meta tracking-widest py-2 text-xs"
               >
-                <p className="text-cream-DEFAULT/70 text-xs category-meta tracking-widest">
-                  NO ADMIN ACCESS FOUND
-                </p>
-                <p className="text-cream-DEFAULT/50 text-xs font-sans mt-2">
-                  Please open the deployment link from Caffeine to activate
-                  admin.
-                </p>
-              </motion.div>
-            )}
+                ACTIVATE ADMIN
+              </Button>
+              <p className="text-cream-DEFAULT/40 text-xs font-sans mt-3 text-center">
+                Find your token in the Caffeine deployment link after{" "}
+                <code>#caffeineAdminToken=</code>
+              </p>
+            </motion.div>
+          )}
 
           {activateError && (
             <p
