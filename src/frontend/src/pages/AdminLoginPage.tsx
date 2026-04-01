@@ -2,10 +2,16 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2, Lock } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useIsAdmin } from "../hooks/useQueries";
+
+function getTokenFromHash(): string {
+  const hash = window.location.hash;
+  const match = hash.match(/caffeineAdminToken=([^&]*)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
@@ -18,9 +24,58 @@ export function AdminLoginPage() {
   } = useIsAdmin();
   const { actor } = useActor();
 
-  const [token, setToken] = useState("");
   const [activating, setActivating] = useState(false);
   const [activateError, setActivateError] = useState("");
+  const activatedRef = useRef(false);
+
+  // Auto-activate when logged in and a token is present in the URL hash
+  useEffect(() => {
+    if (!identity || !actor || isAdmin || checkingAdmin || activatedRef.current)
+      return;
+    if (!isLoginSuccess) return;
+
+    const token = getTokenFromHash();
+    if (!token) return;
+
+    activatedRef.current = true;
+    setActivating(true);
+    setActivateError("");
+
+    actor
+      ._initializeAccessControlWithSecret(token)
+      .then(() => refetchAdmin())
+      .then((result) => {
+        if (result.data) {
+          // Clean token from URL before navigating
+          history.replaceState(
+            null,
+            "",
+            window.location.pathname + window.location.search,
+          );
+          navigate({ to: "/admin" });
+        } else {
+          setActivateError(
+            "Admin activation failed. Please try the deployment link again.",
+          );
+          activatedRef.current = false;
+        }
+      })
+      .catch(() => {
+        setActivateError(
+          "Admin activation failed. Please try the deployment link again.",
+        );
+        activatedRef.current = false;
+      })
+      .finally(() => setActivating(false));
+  }, [
+    identity,
+    isLoginSuccess,
+    actor,
+    isAdmin,
+    checkingAdmin,
+    navigate,
+    refetchAdmin,
+  ]);
 
   useEffect(() => {
     if (identity && isAdmin) {
@@ -28,26 +83,7 @@ export function AdminLoginPage() {
     }
   }, [identity, isAdmin, navigate]);
 
-  async function handleActivate() {
-    if (!actor || !token.trim()) return;
-    setActivating(true);
-    setActivateError("");
-    try {
-      await actor._initializeAccessControlWithSecret(token.trim());
-      const result = await refetchAdmin();
-      if (result.data) {
-        navigate({ to: "/admin" });
-      } else {
-        setActivateError(
-          "Token accepted but admin access was not granted. Please check the token and try again.",
-        );
-      }
-    } catch (_err) {
-      setActivateError("Invalid token. Please check and try again.");
-    } finally {
-      setActivating(false);
-    }
-  }
+  const hasTokenInUrl = Boolean(getTokenFromHash());
 
   return (
     <main className="min-h-[80vh] flex items-center justify-center bg-background">
@@ -79,63 +115,48 @@ export function AdminLoginPage() {
 
           <Button
             onClick={login}
-            disabled={isLoggingIn || checkingAdmin}
+            disabled={isLoggingIn || checkingAdmin || activating}
             data-ocid="login.primary_button"
             className="w-full bg-wine-vibrant hover:bg-wine-DEFAULT text-cream-DEFAULT category-meta tracking-widest py-3 text-sm"
           >
-            {isLoggingIn || checkingAdmin ? (
+            {isLoggingIn || checkingAdmin || activating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                CONNECTING...
+                {activating ? "ACTIVATING..." : "CONNECTING..."}
               </>
             ) : (
               "SIGN IN"
             )}
           </Button>
 
-          {isLoginSuccess && !isAdmin && !checkingAdmin && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-6"
-              data-ocid="login.error_state"
-            >
-              <p className="text-cream-DEFAULT/70 text-xs text-center category-meta tracking-widest mb-4">
-                ENTER YOUR ADMIN TOKEN TO ACTIVATE ACCESS
-              </p>
-              <input
-                type="text"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="Enter admin token"
-                data-ocid="admin.input"
-                className="w-full bg-wine-DEFAULT/30 border border-wine-vibrant/40 text-cream-DEFAULT placeholder-cream-DEFAULT/30 px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-wine-vibrant mb-3"
-                onKeyDown={(e) => e.key === "Enter" && handleActivate()}
-              />
-              <Button
-                onClick={handleActivate}
-                disabled={activating || !token.trim()}
-                data-ocid="admin.submit_button"
-                className="w-full bg-wine-vibrant hover:bg-wine-DEFAULT text-cream-DEFAULT category-meta tracking-widest py-3 text-sm"
+          {isLoginSuccess &&
+            !isAdmin &&
+            !checkingAdmin &&
+            !activating &&
+            !hasTokenInUrl && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 text-center"
+                data-ocid="login.error_state"
               >
-                {activating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ACTIVATING...
-                  </>
-                ) : (
-                  "ACTIVATE ADMIN"
-                )}
-              </Button>
-              {activateError && (
-                <p
-                  className="mt-3 text-wine-vibrant text-xs text-center font-sans"
-                  data-ocid="admin.error_state"
-                >
-                  {activateError}
+                <p className="text-cream-DEFAULT/70 text-xs category-meta tracking-widest">
+                  NO ADMIN ACCESS FOUND
                 </p>
-              )}
-            </motion.div>
+                <p className="text-cream-DEFAULT/50 text-xs font-sans mt-2">
+                  Please open the deployment link from Caffeine to activate
+                  admin.
+                </p>
+              </motion.div>
+            )}
+
+          {activateError && (
+            <p
+              className="mt-4 text-wine-vibrant text-xs text-center font-sans"
+              data-ocid="admin.error_state"
+            >
+              {activateError}
+            </p>
           )}
         </div>
       </motion.div>
