@@ -1,0 +1,161 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.25rem;
+    /* Warm cream background */
+    --background: 0.92 0.04 85;
+    /* Golden text */
+    --foreground: 0.78 0.13 80;
+    /* Light card */
+    --card: 0.96 0.025 85;
+    --card-foreground: 0.78 0.13 80;
+    --popover: 0.96 0.025 85;
+    --popover-foreground: 0.78 0.13 80;
+    /* Vibrant red-burgundy as primary */
+    --primary: 0.44 0.18 20;
+    --primary-foreground: 0.95 0.025 85;
+    /* Cream secondary */
+    --secondary: 0.88 0.05 85;
+    --secondary-foreground: 0.18 0.075 15;
+    --muted: 0.88 0.035 85;
+    --muted-foreground: 0.45 0.04 40;
+    --accent: 0.33 0.12 14;
+    --accent-foreground: 0.92 0.04 85;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.82 0.06 80;
+    --input: 0.85 0.05 82;
+    --ring: 0.44 0.18 20;
+    /* Dark sections colors as CSS vars */
+    --dark-bg: 0.18 0.075 15;
+    --dark-mid: 0.25 0.09 14;
+    --dark-wine: 0.33 0.12 14;
+    --vibrant-red: 0.44 0.18 20;
+    --cream: 0.92 0.04 85;
+    --chart-1: 0.44 0.18 20;
+    --chart-2: 0.33 0.12 14;
+    --chart-3: 0.25 0.09 14;
+    --chart-4: 0.92 0.04 85;
+    --chart-5: 0.55 0.15 18;
+    --sidebar: 0.18 0.075 15;
+    --sidebar-foreground: 0.92 0.04 85;
+    --sidebar-primary: 0.44 0.18 20;
+    --sidebar-primary-foreground: 0.92 0.04 85;
+    --sidebar-accent: 0.25 0.09 14;
+    --sidebar-accent-foreground: 0.92 0.04 85;
+    --sidebar-border: 0.25 0.09 14;
+    --sidebar-ring: 0.44 0.18 20;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "General Sans", "Inter", sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Playfair Display", Georgia, serif;
+  }
+}
+
+@font-face {
+  font-family: "General Sans";
+  src: url("/assets/fonts/GeneralSans.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Playfair Display";
+  src: url("/assets/fonts/PlayfairDisplay.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+.dark-band {
+  background-color: oklch(var(--dark-bg));
+  color: oklch(var(--cream));
+}
+
+.wine-band {
+  background-color: oklch(var(--dark-wine));
+  color: oklch(var(--cream));
+}
+
+.editorial-heading {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.category-meta {
+  font-family: "General Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.article-body {
+  font-family: "General Sans", sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: oklch(0.72 0.12 80);
+}
+
+.article-body p {
+  margin-bottom: 1.25em;
+}
+.article-body h2 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 2em 0 0.75em;
+}
+.article-body h3 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 1.75em 0 0.5em;
+}
+.article-body blockquote {
+  border-left: 3px solid oklch(var(--vibrant-red));
+  padding-left: 1.25em;
+  margin: 1.5em 0;
+  font-style: italic;
+  color: oklch(0.35 0.09 14);
+}
+.article-body ul,
+.article-body ol {
+  margin: 1em 0 1em 1.5em;
+}
+.article-body li {
+  margin-bottom: 0.4em;
+}
+.article-body strong {
+  font-weight: 600;
+  color: oklch(0.65 0.14 75);
+}
+.article-body em {
+  font-style: italic;
+}
+.article-body a {
+  color: oklch(var(--vibrant-red));
+  text-decoration: underline;
+}
